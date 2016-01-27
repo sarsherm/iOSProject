@@ -10,19 +10,19 @@ import UIKit
 import MapKit
 import CoreLocation
 
-class ViewController: UIViewController, CLLocationManagerDelegate, UITableViewDataSource, UITableViewDelegate, CancelButtonDelegate, MKMapViewDelegate {
+class ViewController: UIViewController, CLLocationManagerDelegate, UITableViewDataSource, UITableViewDelegate, CancelButtonDelegate, MKMapViewDelegate, UISearchBarDelegate {
     
     var locationManager: CLLocationManager!
     var location: CLLocation?
     
     var tableIsFoundItems = true
+    var searchActive : Bool = false
     
     var items = [Item(name: "shoes", latitude: 47.611588, longitude: -122.196994, distance: 5, zipCode: 98004, details: "size 6", dateListed: "12/29/15", found: 0), Item(name: "shirt", latitude: 47.61067, longitude: -122.203068, distance: 5, zipCode: 98052, details: "blue, size small", dateListed: "1/14/16", found: 10), Item(name: "earrings", latitude: 49.000345, longitude: -122.197000, distance: 6, zipCode: 98008, details: "diamonds", dateListed: "1/20/16", found: 2)]
     
     var tableItems = [Item]()
     
-
-    @IBOutlet weak var itemSearchTextField: UITextField!
+    var tempTable = [Item]()
     
     @IBOutlet weak var map: MKMapView!
     
@@ -56,18 +56,24 @@ class ViewController: UIViewController, CLLocationManagerDelegate, UITableViewDa
     }
     
     
+    @IBOutlet weak var searchOutlet: UISearchBar!
     
     override func viewDidLoad() {
         super.viewDidLoad()
         tableView.dataSource = self
         tableView.delegate = self
         map.delegate = self
+        searchOutlet.delegate = self
+
         
         for var i = 0; i < items.count; ++i {
             if items[i].found != 0 {
                 tableItems.append(items[i])
+                print(items[i].details)
             }
         }
+        
+        tempTable = tableItems
         
         locationManager = CLLocationManager()
         locationManager.delegate = self
@@ -100,7 +106,8 @@ class ViewController: UIViewController, CLLocationManagerDelegate, UITableViewDa
         
         mapView(map, viewForAnnotation: annotation)
         
-        
+//        let tap: UITapGestureRecognizer = UITapGestureRecognizer(target: self, action: "dismissKeyboard")
+//        view.addGestureRecognizer(tap)
     }
     
     
@@ -144,6 +151,8 @@ class ViewController: UIViewController, CLLocationManagerDelegate, UITableViewDa
     func tableView(tableView: UITableView, cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCellWithIdentifier("ItemCell")! as! ItemCell
         let item = tableItems[indexPath.row]
+        print(item.details)
+        print(tableItems[indexPath.row].details)
         cell.zipCodeLabel.text = String(item.zipCode)
         cell.detailsLabel.text = String(item.details)
         cell.dateListedLabel.text = String(item.dateListed)
@@ -174,14 +183,21 @@ class ViewController: UIViewController, CLLocationManagerDelegate, UITableViewDa
     
     func tableView(tableView: UITableView, didSelectRowAtIndexPath indexPath: NSIndexPath) {
         removeAnnotations()
-        addItemAnnotation(items[indexPath.row])
+        addItemAnnotation(tableItems[indexPath.row])
         
     }
     
+    func tableView(tableView: UITableView, accessoryButtonTappedForRowWithIndexPath indexPath: NSIndexPath) {
+       print("hi")
+    }
+ 
+    
     func addItemAnnotation(item: Item){
+        print(item.details)
         let itemAnnotation = MKPointAnnotation()
         let itemLocation2D = CLLocationCoordinate2D(latitude: item.latitude, longitude: item.longitude)
         itemAnnotation.coordinate = itemLocation2D
+        print(item.name)
         itemAnnotation.title = item.name
         self.map.addAnnotation(itemAnnotation)
         self.map.selectAnnotation(itemAnnotation,animated:true)
@@ -197,6 +213,57 @@ class ViewController: UIViewController, CLLocationManagerDelegate, UITableViewDa
         }
         map.removeAnnotations(annotationsToRemove)
     }
+    
+    func dismissKeyboard() {
+        //Causes the view (or one of its embedded text fields) to resign the first responder status.
+        view.endEditing(true)
+    }
+    
+    
+    //search functions
+    
+    func searchBarTextDidBeginEditing(searchBar: UISearchBar) {
+        print(tableItems)
+        
+        tempTable = tableItems
+        print(tempTable)
+        tableItems = []
+        searchActive = true;
+    }
+    
+    func searchBarTextDidEndEditing(searchBar: UISearchBar) {
+        searchActive = false;
+    }
+    
+    func searchBarCancelButtonClicked(searchBar: UISearchBar) {
+        searchOutlet.text! = ""
+        dismissKeyboard()
+        tableItems = tempTable
+        self.tableView.reloadData()
+        searchActive = false;
+    }
+
+    
+    func searchBarSearchButtonClicked(searchBar: UISearchBar) {
+        searchActive = false;
+    }
+    
+    func searchBar(searchBar: UISearchBar, textDidChange searchText: String) {
+         tableItems = items.filter({ (Item) -> Bool in
+            let tmp: NSString = NSString(string: Item.name)
+            let range = tmp.rangeOfString(searchText, options: NSStringCompareOptions.CaseInsensitiveSearch)
+            return range.location != NSNotFound
+        })
+        
+        
+        if(tableItems.count == 0){
+            searchActive = false;
+        } else {
+            searchActive = true;
+        }
+        self.tableView.reloadData()
+    }
+
 
 }
 
